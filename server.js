@@ -10,7 +10,6 @@ import dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 
-// Get current file path (equivalent to __dirname in CommonJS)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
@@ -26,20 +25,17 @@ app.use(cors({
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization', 'x-auth-token']
 }));
-
-// Handle preflight requests
 app.options('*', cors());
 
 app.use(express.json());
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // MongoDB Connection
 mongoose.connect(process.env.MONGODB_URI || 'mongodb://localhost:27017/chethan-portfolio')
   .then(() => console.log('MongoDB Connected'))
   .catch(err => console.log(err));
 
-// Models
-// User Model
+// Schemas and Models
 const UserSchema = new mongoose.Schema({
   username: { type: String, required: true, unique: true },
   password: { type: String, required: true },
@@ -50,7 +46,6 @@ const UserSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Gallery Model
 const GallerySchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String },
@@ -58,7 +53,6 @@ const GallerySchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Contact Model
 const ContactSchema = new mongoose.Schema({
   name: { type: String, required: true },
   email: { type: String, required: true },
@@ -68,7 +62,6 @@ const ContactSchema = new mongoose.Schema({
   createdAt: { type: Date, default: Date.now }
 });
 
-// Project Model
 const ProjectSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
@@ -83,10 +76,10 @@ const Gallery = mongoose.model('Gallery', GallerySchema);
 const Contact = mongoose.model('Contact', ContactSchema);
 const Project = mongoose.model('Project', ProjectSchema);
 
-// Multer Configuration for File Upload
+// Multer setup
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const dir = './uploads';
+    const dir = path.join(__dirname, 'uploads');
     if (!fs.existsSync(dir)) {
       fs.mkdirSync(dir, { recursive: true });
     }
@@ -99,7 +92,7 @@ const storage = multer.diskStorage({
 
 const upload = multer({
   storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+  limits: { fileSize: 5 * 1024 * 1024 },
   fileFilter: (req, file, cb) => {
     const filetypes = /jpeg|jpg|png|webp/;
     const mimetype = filetypes.test(file.mimetype);
@@ -112,7 +105,7 @@ const upload = multer({
   }
 });
 
-// Authentication Middleware
+// Auth middleware
 const auth = (req, res, next) => {
   const token = req.header('x-auth-token');
   if (!token) return res.status(401).json({ msg: 'No token, authorization denied' });
@@ -126,7 +119,6 @@ const auth = (req, res, next) => {
   }
 };
 
-// Routes
 // Auth Routes
 app.post('/api/auth/register', async (req, res) => {
   const { username, password, name, email } = req.body;
@@ -135,33 +127,17 @@ app.post('/api/auth/register', async (req, res) => {
     let user = await User.findOne({ username });
     if (user) return res.status(400).json({ msg: 'User already exists' });
 
-    user = new User({
-      username,
-      password,
-      name,
-      email
-    });
+    user = new User({ username, password, name, email });
 
     const salt = await bcrypt.genSalt(10);
     user.password = await bcrypt.hash(password, salt);
-
     await user.save();
 
-    const payload = {
-      user: {
-        id: user.id
-      }
-    };
-
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET || 'secret',
-      { expiresIn: '1d' },
-      (err, token) => {
-        if (err) throw err;
-        res.json({ token });
-      }
-    );
+    const payload = { user: { id: user.id } };
+    jwt.sign(payload, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' }, (err, token) => {
+      if (err) throw err;
+      res.json({ token });
+    });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
@@ -172,27 +148,17 @@ app.post('/api/auth/login', async (req, res) => {
   const { username, password } = req.body;
 
   try {
-    let user = await User.findOne({ username });
+    const user = await User.findOne({ username });
     if (!user) return res.status(400).json({ msg: 'Invalid credentials' });
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: 'Invalid credentials' });
 
-    const payload = {
-      user: {
-        id: user.id
-      }
-    };
-
-    jwt.sign(
-      payload,
-      process.env.JWT_SECRET || 'secret',
-      { expiresIn: '1d' },
-      (err, token) => {
-        if (err) throw err;
-        res.json({ token });
-      }
-    );
+    const payload = { user: { id: user.id } };
+    jwt.sign(payload, process.env.JWT_SECRET || 'secret', { expiresIn: '1d' }, (err, token) => {
+      if (err) throw err;
+      res.json({ token });
+    });
   } catch (err) {
     console.error(err.message);
     res.status(500).send('Server error');
@@ -215,12 +181,7 @@ app.post('/api/gallery', auth, upload.single('image'), async (req, res) => {
     const { title, description } = req.body;
     const imageUrl = `/uploads/${req.file.filename}`;
 
-    const newGallery = new Gallery({
-      title,
-      description,
-      imageUrl
-    });
-
+    const newGallery = new Gallery({ title, description, imageUrl });
     const gallery = await newGallery.save();
     res.json(gallery);
   } catch (err) {
@@ -244,13 +205,12 @@ app.delete('/api/gallery/:id', auth, async (req, res) => {
     const gallery = await Gallery.findById(req.params.id);
     if (!gallery) return res.status(404).json({ msg: 'Gallery not found' });
 
-    // Delete image file
     const imagePath = path.join(__dirname, gallery.imageUrl);
     if (fs.existsSync(imagePath)) {
       fs.unlinkSync(imagePath);
     }
 
-    await gallery.deleteOne(); // Changed from remove() to deleteOne()
+    await gallery.deleteOne();
     res.json({ msg: 'Gallery removed' });
   } catch (err) {
     console.error(err.message);
@@ -262,14 +222,7 @@ app.delete('/api/gallery/:id', auth, async (req, res) => {
 app.post('/api/contact', async (req, res) => {
   try {
     const { name, email, message, phone } = req.body;
-
-    const newContact = new Contact({
-      name,
-      email,
-      message,
-      phone
-    });
-
+    const newContact = new Contact({ name, email, message, phone });
     const contact = await newContact.save();
     res.json(contact);
   } catch (err) {
@@ -304,7 +257,7 @@ app.put('/api/contact/:id', auth, async (req, res) => {
 
 app.delete('/api/contact/:id', auth, async (req, res) => {
   try {
-    await Contact.findByIdAndDelete(req.params.id); // Changed from findByIdAndRemove
+    await Contact.findByIdAndDelete(req.params.id);
     res.json({ msg: 'Contact removed' });
   } catch (err) {
     console.error(err.message);
@@ -312,5 +265,5 @@ app.delete('/api/contact/:id', auth, async (req, res) => {
   }
 });
 
-// Start server
+// Start Server
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));

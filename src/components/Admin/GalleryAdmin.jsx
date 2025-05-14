@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import { FaUpload, FaTrash, FaImage, FaEdit, FaTimes } from 'react-icons/fa';
 import AdminLayout from './AdminLayout';
+import { mockApi } from '../../utils/mockApi';
 
 const GalleryAdmin = () => {
   const [images, setImages] = useState([]);
@@ -29,26 +30,37 @@ const GalleryAdmin = () => {
       setLoading(true);
 
       try {
-        // Try to fetch from API
-        const res = await axios.get('http://localhost:5000/api/gallery');
-        console.log("Gallery data received:", res.data);
+        // Try to fetch from API in development, use mock API in production
+        let galleryData;
+
+        if (window.location.hostname === 'localhost') {
+          // Development mode - try to use real API
+          const res = await axios.get('http://localhost:5000/api/gallery');
+          console.log("Gallery data received from API:", res.data);
+          galleryData = res.data;
+        } else {
+          // Production mode - use mock API
+          galleryData = await mockApi.getGallery();
+          console.log("Gallery data received from mock API:", galleryData);
+        }
 
         // Add local URLs for preview
-        const imagesWithLocalUrls = res.data.map(image => ({
+        const imagesWithLocalUrls = galleryData.map(image => ({
           ...image,
-          localUrl: preview || '/src/assets/logo.png' // Use the current preview or a default image
+          localUrl: image.imageUrl.startsWith('/src')
+            ? image.imageUrl
+            : '/src/assets/logo.png' // Use the image URL or a default image
         }));
 
         setImages(imagesWithLocalUrls);
       } catch (apiError) {
         console.error("API error:", apiError);
-        // Use mock data
-        const mockImages = [
-          { _id: '1', title: 'Image 1', description: 'Description 1', imageUrl: '/uploads/image1.jpg', localUrl: '/src/assets/logo.png' },
-          { _id: '2', title: 'Image 2', description: 'Description 2', imageUrl: '/uploads/image2.jpg', localUrl: '/src/assets/logo.png' },
-          { _id: '3', title: 'Image 3', description: 'Description 3', imageUrl: '/uploads/image3.jpg', localUrl: '/src/assets/logo.png' }
-        ];
-        setImages(mockImages);
+        // Use mock data as fallback
+        const mockImages = await mockApi.getGallery();
+        setImages(mockImages.map(image => ({
+          ...image,
+          localUrl: '/src/assets/logo.png'
+        })));
       }
     } catch (err) {
       setError('Failed to fetch gallery images');
@@ -86,30 +98,43 @@ const GalleryAdmin = () => {
       setUploading(true);
       setError(null);
 
-      // Create a mock image object
-      const newImage = {
-        _id: Date.now().toString(), // Generate a unique ID
+      // Create a new image object
+      const newImageData = {
         title,
         description,
-        imageUrl: '/uploads/new-image.jpg', // Mock server path
-        localUrl: preview // Use the preview as the local URL
+        imageUrl: '/src/assets/logo.png', // Default image path
       };
 
-      try {
-        // Try to make the API call (will likely fail in mock mode)
-        const formData = new FormData();
-        formData.append('title', title);
-        formData.append('description', description);
-        formData.append('image', file);
+      let newImage;
 
-        await axios.post('http://localhost:5000/api/gallery', formData, {
-          headers: {
-            'Content-Type': 'multipart/form-data'
-          }
-        });
-      } catch (apiError) {
-        console.log("API call failed (expected in mock mode):", apiError);
-        // Continue with mock data
+      if (window.location.hostname === 'localhost') {
+        // Development mode - try to use real API
+        try {
+          const formData = new FormData();
+          formData.append('title', title);
+          formData.append('description', description);
+          formData.append('image', file);
+
+          const res = await axios.post('http://localhost:5000/api/gallery', formData, {
+            headers: {
+              'Content-Type': 'multipart/form-data'
+            }
+          });
+
+          newImage = {
+            ...res.data,
+            localUrl: preview // Use the preview as the local URL
+          };
+        } catch (apiError) {
+          console.log("API call failed, using mock data:", apiError);
+          // Fall back to mock API
+          newImage = await mockApi.addGalleryItem(newImageData);
+          newImage.localUrl = preview;
+        }
+      } else {
+        // Production mode - use mock API
+        newImage = await mockApi.addGalleryItem(newImageData);
+        newImage.localUrl = preview;
       }
 
       // Add the new image to the state
@@ -142,12 +167,18 @@ const GalleryAdmin = () => {
     try {
       setLoading(true);
 
-      try {
-        // Try to make the API call (will likely fail in mock mode)
-        await axios.delete(`http://localhost:5000/api/gallery/${id}`);
-      } catch (apiError) {
-        console.log("API call failed (expected in mock mode):", apiError);
-        // Continue with mock data
+      if (window.location.hostname === 'localhost') {
+        // Development mode - try to use real API
+        try {
+          await axios.delete(`http://localhost:5000/api/gallery/${id}`);
+        } catch (apiError) {
+          console.log("API call failed, using mock data:", apiError);
+          // Fall back to mock API
+          await mockApi.deleteGalleryItem(id);
+        }
+      } else {
+        // Production mode - use mock API
+        await mockApi.deleteGalleryItem(id);
       }
 
       // Remove the image from the state
@@ -194,12 +225,18 @@ const GalleryAdmin = () => {
         description: editDescription
       };
 
-      try {
-        // Try to make the API call (will likely fail in mock mode)
-        await axios.put(`http://localhost:5000/api/gallery/${editingImage._id}`, updatedData);
-      } catch (apiError) {
-        console.log("API call failed (expected in mock mode):", apiError);
-        // Continue with mock data
+      if (window.location.hostname === 'localhost') {
+        // Development mode - try to use real API
+        try {
+          await axios.put(`http://localhost:5000/api/gallery/${editingImage._id}`, updatedData);
+        } catch (apiError) {
+          console.log("API call failed, using mock data:", apiError);
+          // Fall back to mock API
+          await mockApi.updateGalleryItem(editingImage._id, updatedData);
+        }
+      } else {
+        // Production mode - use mock API
+        await mockApi.updateGalleryItem(editingImage._id, updatedData);
       }
 
       // Update the image in the state

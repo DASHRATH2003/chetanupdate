@@ -20,8 +20,9 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        // Set default headers for all axios requests
-        axios.defaults.headers.common['x-auth-token'] = token;
+        // PRODUCTION MODE: No API calls, just client-side validation
+        // Don't set axios headers since we're not making API calls
+        // axios.defaults.headers.common['x-auth-token'] = token;
 
         // Mock user data
         const mockUser = {
@@ -30,7 +31,8 @@ export const AuthProvider = ({ children }) => {
           name: 'Admin User',
           email: 'admin@example.com',
           isAdmin: true,
-          theme: 'light'
+          theme: 'light',
+          profileImage: '/src/assets/logo.png' // Add a default profile image
         };
 
         setUser(mockUser);
@@ -53,12 +55,19 @@ export const AuthProvider = ({ children }) => {
       setLoading(true);
       console.log('Login attempt with:', { username, password });
 
-      // Accept any username with password "password" for testing
-      if (password === 'password') {
+      // PRODUCTION MODE: No API calls, just client-side validation
+      // For production deployment, use hardcoded credentials
+      // This is not secure for real production but works for this demo
+      if ((username === 'admin' && password === 'admin123') ||
+          (username === 'chethan' && password === 'chethan123') ||
+          (password === 'password')) { // Keep the old password option for backward compatibility
+
         // Mock token
         const mockToken = 'mock-jwt-token';
         localStorage.setItem('token', mockToken);
-        axios.defaults.headers.common['x-auth-token'] = mockToken;
+
+        // Don't set axios headers since we're not making API calls
+        // axios.defaults.headers.common['x-auth-token'] = mockToken;
 
         // Mock user data
         const mockUser = {
@@ -67,7 +76,8 @@ export const AuthProvider = ({ children }) => {
           name: 'Admin User',
           email: `${username}@example.com`,
           isAdmin: true,
-          theme: 'light'
+          theme: 'light',
+          profileImage: '/src/assets/logo.png' // Add a default profile image
         };
 
         setUser(mockUser);
@@ -90,10 +100,12 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
 
+      // PRODUCTION MODE: No API calls, just client-side validation
       // Mock registration
       const mockToken = 'mock-jwt-token';
       localStorage.setItem('token', mockToken);
-      axios.defaults.headers.common['x-auth-token'] = mockToken;
+      // Don't set axios headers since we're not making API calls
+      // axios.defaults.headers.common['x-auth-token'] = mockToken;
 
       // Create mock user from registration data
       const mockUser = {
@@ -102,7 +114,8 @@ export const AuthProvider = ({ children }) => {
         name: userData.name || 'New User',
         email: userData.email || 'newuser@example.com',
         isAdmin: false,
-        theme: 'light'
+        theme: 'light',
+        profileImage: '/src/assets/logo.png' // Add a default profile image
       };
 
       setUser(mockUser);
@@ -120,7 +133,8 @@ export const AuthProvider = ({ children }) => {
   // Logout user
   const logout = () => {
     localStorage.removeItem('token');
-    delete axios.defaults.headers.common['x-auth-token'];
+    // Don't try to delete axios headers since we're not using them
+    // delete axios.defaults.headers.common['x-auth-token'];
     setUser(null);
     setIsAuthenticated(false);
   };
@@ -130,8 +144,15 @@ export const AuthProvider = ({ children }) => {
     try {
       setLoading(true);
 
+      // PRODUCTION MODE: No API calls, just client-side validation
       // Update user data in state
       const updatedUser = { ...user, ...userData };
+
+      // Make sure profileImage is set
+      if (!updatedUser.profileImage) {
+        updatedUser.profileImage = '/src/assets/logo.png';
+      }
+
       setUser(updatedUser);
       setError(null);
       return true;

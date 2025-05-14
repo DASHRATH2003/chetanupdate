@@ -6,6 +6,7 @@ import img1 from "../../../assets/GalleryImages/1.webp";
 import img2 from "../../../assets/GalleryImages/2.webp";
 import img3 from "../../../assets/GalleryImages/3.webp";
 import img4 from "../../../assets/GalleryImages/4.webp";
+import { mockApi } from "../../../utils/mockApi";
 
 const GalleryPageSection2 = () => {
   const [gallery, setGallery] = useState([]);
@@ -26,25 +27,34 @@ const GalleryPageSection2 = () => {
         setLoading(true);
 
         try {
-          // Try to fetch from API
-          const res = await axios.get('http://localhost:5000/api/gallery');
+          let galleryData;
 
-          if (res.data && res.data.length > 0) {
+          if (window.location.hostname === 'localhost') {
+            // Development mode - try to use real API
+            const res = await axios.get('http://localhost:5000/api/gallery');
+            console.log("Gallery data received from API:", res.data);
+            galleryData = res.data;
+          } else {
+            // Production mode - use mock API
+            galleryData = await mockApi.getGallery();
+            console.log("Gallery data received from mock API:", galleryData);
+          }
+
+          if (galleryData && galleryData.length > 0) {
             // Format the data for our gallery
-            // Since we're using mock data, we'll use the fallback images instead of the API paths
-            const formattedGallery = res.data.map((item, index) => ({
+            const formattedGallery = galleryData.map((item, index) => ({
               src: fallbackGallery[index % fallbackGallery.length].src, // Use fallback images in a loop
               alt: item.title || "Gallery image",
               title: item.title,
               description: item.description
             }));
             setGallery(formattedGallery);
-            console.log("Gallery images loaded from API with fallback images");
+            console.log("Gallery images loaded successfully");
           } else {
-            throw new Error("No gallery images returned from API");
+            throw new Error("No gallery images returned");
           }
         } catch (apiError) {
-          console.error("Error fetching from API, using fallback data:", apiError);
+          console.error("Error fetching gallery data, using fallback data:", apiError);
           // Use fallback data on error
           setGallery(fallbackGallery);
           console.log("Using fallback gallery images");
