@@ -45,55 +45,11 @@ const ContactAdmin = () => {
     try {
       setLoading(true);
 
-      // Mock contact data
-      const mockContacts = [
-        {
-          _id: '1',
-          name: 'John Doe',
-          email: 'john@example.com',
-          phone: '+1234567890',
-          message: 'Hello, I would like to inquire about your services. Please contact me at your earliest convenience.',
-          isRead: true,
-          createdAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString() // 7 days ago
-        },
-        {
-          _id: '2',
-          name: 'Jane Smith',
-          email: 'jane@example.com',
-          phone: '+1987654321',
-          message: 'I am interested in your portfolio. Can we schedule a call to discuss a potential project?',
-          isRead: false,
-          createdAt: new Date(Date.now() - 3 * 24 * 60 * 60 * 1000).toISOString() // 3 days ago
-        },
-        {
-          _id: '3',
-          name: 'Bob Johnson',
-          email: 'bob@example.com',
-          message: 'Your work is amazing! I would like to collaborate on a new film project. Please let me know if you are available.',
-          isRead: false,
-          createdAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString() // 1 day ago
-        },
-        {
-          _id: '4',
-          name: 'Alice Williams',
-          email: 'alice@example.com',
-          phone: '+1122334455',
-          message: 'I saw your latest work and I am impressed. Would love to discuss a potential collaboration.',
-          isRead: true,
-          createdAt: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString() // 14 days ago
-        },
-        {
-          _id: '5',
-          name: 'Charlie Brown',
-          email: 'charlie@example.com',
-          message: 'Hello, I need a quote for a commercial video project. It would be for a product launch next month.',
-          isRead: false,
-          createdAt: new Date().toISOString() // Today
-        }
-      ];
+      // Empty contacts array - no mock data
+      const emptyContacts = [];
 
-      setContacts(mockContacts);
-      setFilteredContacts(mockContacts);
+      setContacts(emptyContacts);
+      setFilteredContacts(emptyContacts);
     } catch (err) {
       setError('Failed to fetch contacts');
       console.error(err);
