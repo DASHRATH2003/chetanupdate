@@ -8,6 +8,11 @@ import imageStorage from '../utils/simpleImageStorage';
 // Storage event listener for cross-tab synchronization
 const STORAGE_CHANGE_EVENT = 'galleryStorageChange';
 
+// Prefix for all image keys in localStorage (must match the ones in simpleImageStorage.js)
+const IMAGE_KEY_PREFIX = 'gallery-img-';
+// Prefix for all image metadata keys in localStorage
+const METADATA_KEY_PREFIX = 'gallery-meta-';
+
 export const GalleryContext = createContext();
 
 export const GalleryProvider = ({ children }) => {
@@ -111,6 +116,17 @@ export const GalleryProvider = ({ children }) => {
       try {
         console.log("All localStorage keys:", Object.keys(localStorage));
 
+        // Check for image keys first to ensure we have all stored images
+        const imageKeys = [];
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key && key.startsWith(IMAGE_KEY_PREFIX)) {
+            const imageId = key.substring(IMAGE_KEY_PREFIX.length);
+            imageKeys.push(imageId);
+            console.log(`Found stored image with key: ${imageId}`);
+          }
+        }
+
         // Try to load gallery from localStorage
         const savedGallery = localStorage.getItem('gallery');
         console.log("Saved gallery exists:", !!savedGallery);
@@ -137,6 +153,7 @@ export const GalleryProvider = ({ children }) => {
                 // Process any image references and deduplicate
                 const uniqueItemsMap = new Map();
 
+                // First add all items from the saved gallery
                 parsedGallery.forEach(item => {
                   if (!item || !item._id) {
                     console.warn("Invalid gallery item:", item);
@@ -179,11 +196,41 @@ export const GalleryProvider = ({ children }) => {
                   uniqueItemsMap.set(item._id, item);
                 });
 
+                // Now check if there are any stored images not in the gallery
+                imageKeys.forEach(imageKey => {
+                  // If this image is not already in our map, add it
+                  if (!Array.from(uniqueItemsMap.values()).some(item =>
+                    item.imageUrl === `img:${imageKey}` ||
+                    (item._id === imageKey && item.imageUrl && item.imageUrl.startsWith('img:'))
+                  )) {
+                    console.log(`Found stored image not in gallery: ${imageKey}`);
+
+                    // Get the image metadata
+                    const metadataString = localStorage.getItem(`${METADATA_KEY_PREFIX}${imageKey}`);
+                    const metadata = metadataString ? JSON.parse(metadataString) : {};
+
+                    // Create a new gallery item for this image
+                    uniqueItemsMap.set(imageKey, {
+                      _id: imageKey,
+                      title: metadata.title || 'Untitled Image',
+                      description: metadata.description || '',
+                      imageUrl: `img:${imageKey}`,
+                      alt: metadata.alt || 'Gallery image',
+                      timestamp: metadata.timestamp || Date.now()
+                    });
+
+                    console.log(`Added missing image to gallery: ${imageKey}`);
+                  }
+                });
+
                 // Convert map to array
                 const processedGallery = Array.from(uniqueItemsMap.values());
 
                 setGallery(processedGallery);
-                console.log("Gallery data is valid and loaded successfully");
+                console.log("Gallery data is valid and loaded successfully with", processedGallery.length, "items");
+
+                // Save the updated gallery back to localStorage to ensure it includes all images
+                localStorage.setItem('gallery', JSON.stringify(processedGallery));
               } else {
                 console.warn("Invalid gallery data in localStorage, using defaults");
                 initializeDefaultGallery();
@@ -198,9 +245,36 @@ export const GalleryProvider = ({ children }) => {
             initializeDefaultGallery();
           }
         } else {
-          console.log("No saved gallery found, using defaults");
-          // No saved gallery, use defaults
-          initializeDefaultGallery();
+          // No saved gallery, but check if we have any stored images
+          if (imageKeys.length > 0) {
+            console.log(`Found ${imageKeys.length} stored images but no gallery, creating gallery from images`);
+
+            // Create gallery items from stored images
+            const galleryItems = imageKeys.map(imageKey => {
+              // Get the image metadata
+              const metadataString = localStorage.getItem(`${METADATA_KEY_PREFIX}${imageKey}`);
+              const metadata = metadataString ? JSON.parse(metadataString) : {};
+
+              return {
+                _id: imageKey,
+                title: metadata.title || 'Untitled Image',
+                description: metadata.description || '',
+                imageUrl: `img:${imageKey}`,
+                alt: metadata.alt || 'Gallery image',
+                timestamp: metadata.timestamp || Date.now()
+              };
+            });
+
+            setGallery(galleryItems);
+            console.log("Created gallery from stored images:", galleryItems);
+
+            // Save the new gallery to localStorage
+            localStorage.setItem('gallery', JSON.stringify(galleryItems));
+          } else {
+            console.log("No saved gallery or stored images found, using defaults");
+            // No saved gallery or stored images, use defaults
+            initializeDefaultGallery();
+          }
         }
       } catch (error) {
         console.error("Error initializing gallery:", error);

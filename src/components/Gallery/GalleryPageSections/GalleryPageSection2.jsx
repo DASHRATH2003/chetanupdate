@@ -21,6 +21,25 @@ const getImageSource = (imageUrl) => {
 
   // If it's a direct URL or path, return it
   if (!imageUrl.startsWith('img:')) {
+    // Check if it's a relative path to assets
+    if (imageUrl.startsWith('/src/assets/')) {
+      console.log("Image URL is a relative path to assets");
+      return imageUrl;
+    }
+
+    // Check if it's a data URL
+    if (imageUrl.startsWith('data:')) {
+      console.log("Image URL is a data URL");
+      return imageUrl;
+    }
+
+    // Check if it's an absolute URL
+    if (imageUrl.startsWith('http')) {
+      console.log("Image URL is an absolute URL");
+      return imageUrl;
+    }
+
+    // For other paths, assume it's a relative path
     console.log("Image URL is a direct path, returning as is");
     return imageUrl;
   }
@@ -30,15 +49,32 @@ const getImageSource = (imageUrl) => {
     const key = imageUrl.substring(4); // Remove the 'img:' prefix
     console.log("Looking for image with key:", key);
 
+    // First check localStorage directly
+    const directImageData = localStorage.getItem(`gallery-img-${key}`);
+    if (directImageData) {
+      console.log("Image data found directly in localStorage");
+      return directImageData;
+    }
+
+    // Then try the image storage utility
     const imageResult = imageStorage.getImage(key);
-    console.log("Image found:", !!imageResult);
+    console.log("Image found in storage utility:", !!imageResult);
 
     if (imageResult && imageResult.data) {
-      console.log("Image data retrieved successfully");
+      console.log("Image data retrieved successfully from storage utility");
       return imageResult.data;
-    } else {
-      console.log("Image not found in storage");
     }
+
+    // Check if this is a default gallery item
+    if (key.startsWith('default-')) {
+      const defaultIndex = parseInt(key.split('-')[1]);
+      if (defaultIndex >= 1 && defaultIndex <= 4) {
+        console.log(`Using built-in default image for key: ${key}`);
+        return `/src/assets/GalleryImages/${defaultIndex}.webp`;
+      }
+    }
+
+    console.log("Image not found in storage");
   } catch (error) {
     console.error("Error retrieving image:", error);
   }
@@ -92,18 +128,29 @@ const GalleryPageSection2 = () => {
       // Get the image source
       const imageSrc = getImageSource(item.imageUrl || item.src);
 
+      // Log the image source for debugging
+      console.log(`Image source for item ${item._id}:`, imageSrc ? (imageSrc.substring(0, 50) + '...') : 'null');
+
+      // Skip items with no valid image source
+      if (!imageSrc) {
+        console.warn(`No valid image source for item ${item._id}, skipping`);
+        return;
+      }
+
       // Add to map with ID as key to ensure uniqueness
       uniqueItemsMap.set(item._id, {
-        src: imageSrc || img1, // Use fallback if no image source
+        src: imageSrc, // Use the resolved image source
         alt: item.title || item.alt || "Gallery image",
-        title: item.title,
-        description: item.description,
-        _id: item._id // Keep the ID for reference
+        title: item.title || "Untitled Image",
+        description: item.description || "",
+        _id: item._id, // Keep the ID for reference
+        timestamp: item.timestamp || item.lastUpdated || Date.now() // Keep timestamp for sorting
       });
     });
 
-    // Convert map to array
-    return Array.from(uniqueItemsMap.values());
+    // Convert map to array and sort by timestamp (newest first)
+    return Array.from(uniqueItemsMap.values())
+      .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
   }, [contextGallery]);
 
   // Effect to update gallery when context changes

@@ -8,25 +8,74 @@ import imageStorage from '../../utils/simpleImageStorage';
 
 // Helper function to get image source from storage or use fallback
 const getImageSource = (imageUrl) => {
-  if (!imageUrl) return '/src/assets/GalleryImages/1.webp';
+  console.log("Admin - Getting image source for:", imageUrl);
+
+  if (!imageUrl) {
+    console.log("Admin - No image URL provided, returning fallback");
+    return '/src/assets/GalleryImages/1.webp';
+  }
 
   // If it's a direct URL or path, return it
   if (!imageUrl.startsWith('img:')) {
+    // Check if it's a relative path to assets
+    if (imageUrl.startsWith('/src/assets/')) {
+      console.log("Admin - Image URL is a relative path to assets");
+      return imageUrl;
+    }
+
+    // Check if it's a data URL
+    if (imageUrl.startsWith('data:')) {
+      console.log("Admin - Image URL is a data URL");
+      return imageUrl;
+    }
+
+    // Check if it's an absolute URL
+    if (imageUrl.startsWith('http')) {
+      console.log("Admin - Image URL is an absolute URL");
+      return imageUrl;
+    }
+
+    // For other paths, assume it's a relative path
+    console.log("Admin - Image URL is a direct path, returning as is");
     return imageUrl;
   }
 
   // Try to get the data URL from our image storage utility
   try {
     const key = imageUrl.substring(4); // Remove the 'img:' prefix
+    console.log("Admin - Looking for image with key:", key);
+
+    // First check localStorage directly
+    const directImageData = localStorage.getItem(`gallery-img-${key}`);
+    if (directImageData) {
+      console.log("Admin - Image data found directly in localStorage");
+      return directImageData;
+    }
+
+    // Then try the image storage utility
     const imageResult = imageStorage.getImage(key);
+    console.log("Admin - Image found in storage utility:", !!imageResult);
 
     if (imageResult && imageResult.data) {
+      console.log("Admin - Image data retrieved successfully from storage utility");
       return imageResult.data;
     }
+
+    // Check if this is a default gallery item
+    if (key.startsWith('default-')) {
+      const defaultIndex = parseInt(key.split('-')[1]);
+      if (defaultIndex >= 1 && defaultIndex <= 4) {
+        console.log(`Admin - Using built-in default image for key: ${key}`);
+        return `/src/assets/GalleryImages/${defaultIndex}.webp`;
+      }
+    }
+
+    console.log("Admin - Image not found in storage");
   } catch (error) {
-    console.error("Error retrieving image:", error);
+    console.error("Admin - Error retrieving image:", error);
   }
 
+  console.log("Admin - Using fallback image");
   // Fallback to a default image if we couldn't get the stored image
   return '/src/assets/GalleryImages/1.webp';
 };
@@ -106,6 +155,17 @@ const GalleryAdmin = () => {
       // Create a map to track unique IDs
       const uniqueImagesMap = new Map();
 
+      // Check for image keys in localStorage
+      const imageKeys = [];
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('gallery-img-')) {
+          const imageId = key.substring('gallery-img-'.length);
+          imageKeys.push(imageId);
+          console.log(`Found stored image with key: ${imageId}`);
+        }
+      }
+
       // First try to use the gallery from context
       if (gallery && gallery.length > 0) {
         console.log("Using gallery data from context:", gallery);
@@ -123,14 +183,49 @@ const GalleryAdmin = () => {
           // Get the image source
           const imageUrl = getImageSource(image.imageUrl || image.src);
 
+          // Skip items with no valid image source
+          if (!imageUrl) {
+            console.warn(`No valid image source for item ${imageId}, skipping`);
+            return;
+          }
+
           // Add to map with ID as key to ensure uniqueness
           uniqueImagesMap.set(imageId, {
             ...image,
             _id: imageId,
-            localUrl: imageUrl
+            localUrl: imageUrl,
+            timestamp: image.timestamp || image.lastUpdated || Date.now()
           });
         });
       }
+
+      // Check for any stored images not in the gallery
+      imageKeys.forEach(imageKey => {
+        // If this image is not already in our map, add it
+        if (!uniqueImagesMap.has(imageKey)) {
+          console.log(`Found stored image not in gallery: ${imageKey}`);
+
+          // Get the image metadata
+          const metadataString = localStorage.getItem(`gallery-meta-${imageKey}`);
+          const metadata = metadataString ? JSON.parse(metadataString) : {};
+
+          // Get the image source
+          const imageUrl = getImageSource(`img:${imageKey}`);
+
+          // Add to map
+          uniqueImagesMap.set(imageKey, {
+            _id: imageKey,
+            title: metadata.title || 'Untitled Image',
+            description: metadata.description || '',
+            imageUrl: `img:${imageKey}`,
+            localUrl: imageUrl,
+            alt: metadata.alt || 'Gallery image',
+            timestamp: metadata.timestamp || Date.now()
+          });
+
+          console.log(`Added missing image to gallery: ${imageKey}`);
+        }
+      });
 
       try {
         // Try to fetch from API in development, use mock API in production
