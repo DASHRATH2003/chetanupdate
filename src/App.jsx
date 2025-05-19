@@ -20,6 +20,7 @@ import ProfileAdmin from "./components/Admin/ProfileAdmin";
 import { AuthProvider } from "./context/AuthContext";
 import { UserProvider } from "./context/UserContext";
 import { ProjectProvider } from "./context/ProjectContext";
+import { GalleryProvider } from "./context/GalleryContext";
 import UserLogin from "./components/Auth/Login";
 
 function App() {
@@ -27,8 +28,9 @@ function App() {
     <AuthProvider>
       <UserProvider>
         <ProjectProvider>
-          <Router>
-            <ScrollToTop/>
+          <GalleryProvider>
+            <Router>
+              <ScrollToTop/>
 
           <Routes>
             {/* Public Routes */}
@@ -100,7 +102,8 @@ function App() {
             <Route path="/admin/contact" element={<ContactAdmin />} />
             <Route path="/admin/profile" element={<ProfileAdmin />} />
           </Routes>
-          </Router>
+            </Router>
+          </GalleryProvider>
         </ProjectProvider>
       </UserProvider>
     </AuthProvider>

@@ -50,10 +50,9 @@ const Projects_Cameo_Section = () => {
 
             {/* Content Column */}
             <div className="flex flex-col items-center lg:items-start gap-4 md:gap-5 justify-center md:w-1/2">
-              <h1 className="font-bold uppercase text-xl md:text-2xl text-center">
+              <h1 className="font-bold uppercase text-xl md:text-2xl text-center mb-4">
                 {title}
               </h1>
-              <div className="bg-[#eb2beb] h-[2px] w-16 md:w-20"></div>
               <p className="text-center lg:text-justify leading-6 md:leading-7">
                 {description}
               </p>

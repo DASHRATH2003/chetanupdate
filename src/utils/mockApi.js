@@ -1,56 +1,79 @@
 // Mock API functions for use in production when no backend is available
 
-// Mock gallery data
-const mockGalleryData = [
-  { 
-    _id: '1', 
-    title: 'Image 1', 
-    description: 'Description 1', 
-    imageUrl: '/src/assets/logo.png' 
-  },
-  { 
-    _id: '2', 
-    title: 'Image 2', 
-    description: 'Description 2', 
-    imageUrl: '/src/assets/logo.png' 
-  },
-  { 
-    _id: '3', 
-    title: 'Image 3', 
-    description: 'Description 3', 
-    imageUrl: '/src/assets/logo.png' 
+// Helper function to get gallery data from localStorage or use defaults
+const getGalleryData = () => {
+  try {
+    const storedGallery = localStorage.getItem('gallery');
+    if (storedGallery) {
+      return JSON.parse(storedGallery);
+    }
+  } catch (error) {
+    console.error('Error getting gallery data from localStorage:', error);
   }
-];
+
+  // Default gallery data if nothing in localStorage
+  return [
+    {
+      _id: '1',
+      title: 'Image 1',
+      description: 'Description 1',
+      imageUrl: '/src/assets/GalleryImages/1.webp'
+    },
+    {
+      _id: '2',
+      title: 'Image 2',
+      description: 'Description 2',
+      imageUrl: '/src/assets/GalleryImages/2.webp'
+    },
+    {
+      _id: '3',
+      title: 'Image 3',
+      description: 'Description 3',
+      imageUrl: '/src/assets/GalleryImages/3.webp'
+    }
+  ];
+};
+
+// Helper function to save gallery data to localStorage
+const saveGalleryData = (data) => {
+  try {
+    localStorage.setItem('gallery', JSON.stringify(data));
+    return true;
+  } catch (error) {
+    console.error('Error saving gallery data to localStorage:', error);
+    return false;
+  }
+};
 
 // Mock projects data
 const mockProjectsData = [
-  { 
-    _id: '1', 
-    title: 'Project 1', 
-    description: 'Description 1', 
-    imageUrl: '/src/assets/logo.png', 
-    category: 'Category 1', 
-    section: 'Banner', 
+  {
+    _id: '1',
+    title: 'Project 1',
+    description: 'Description 1',
+    imageUrl: '/src/assets/logo.png',
+    category: 'Category 1',
+    section: 'Banner',
     completed: true,
     year: '2023'
   },
-  { 
-    _id: '2', 
-    title: 'Project 2', 
-    description: 'Description 2', 
-    imageUrl: '/src/assets/logo.png', 
-    category: 'Category 2', 
-    section: 'Section2', 
+  {
+    _id: '2',
+    title: 'Project 2',
+    description: 'Description 2',
+    imageUrl: '/src/assets/logo.png',
+    category: 'Category 2',
+    section: 'Section2',
     completed: false,
     year: '2024'
   },
-  { 
-    _id: '3', 
-    title: 'Project 3', 
-    description: 'Description 3', 
-    imageUrl: '/src/assets/logo.png', 
-    category: 'Category 3', 
-    section: 'Cameo', 
+  {
+    _id: '3',
+    title: 'Project 3',
+    description: 'Description 3',
+    imageUrl: '/src/assets/logo.png',
+    category: 'Category 3',
+    section: 'Cameo',
     completed: true,
     year: '2022'
   }
@@ -58,26 +81,26 @@ const mockProjectsData = [
 
 // Mock contacts data
 const mockContactsData = [
-  { 
-    _id: '1', 
-    name: 'Contact 1', 
-    email: 'contact1@example.com', 
-    message: 'Message 1', 
-    isRead: true 
+  {
+    _id: '1',
+    name: 'Contact 1',
+    email: 'contact1@example.com',
+    message: 'Message 1',
+    isRead: true
   },
-  { 
-    _id: '2', 
-    name: 'Contact 2', 
-    email: 'contact2@example.com', 
-    message: 'Message 2', 
-    isRead: false 
+  {
+    _id: '2',
+    name: 'Contact 2',
+    email: 'contact2@example.com',
+    message: 'Message 2',
+    isRead: false
   },
-  { 
-    _id: '3', 
-    name: 'Contact 3', 
-    email: 'contact3@example.com', 
-    message: 'Message 3', 
-    isRead: false 
+  {
+    _id: '3',
+    name: 'Contact 3',
+    email: 'contact3@example.com',
+    message: 'Message 3',
+    isRead: false
   }
 ];
 
@@ -85,31 +108,72 @@ const mockContactsData = [
 export const mockApi = {
   // Gallery API
   getGallery: () => {
-    return Promise.resolve(mockGalleryData);
+    const galleryData = getGalleryData();
+    console.log('Mock API - getGallery:', galleryData);
+    return Promise.resolve(galleryData);
   },
   addGalleryItem: (item) => {
+    const galleryData = getGalleryData();
+
+    // Use the provided ID or generate a new one
     const newItem = {
-      _id: Date.now().toString(),
+      _id: item._id || `gallery-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
       ...item,
-      imageUrl: '/src/assets/logo.png'
+      // Use the provided imageUrl or fallback to a default
+      imageUrl: item.imageUrl || '/src/assets/GalleryImages/1.webp',
+      timestamp: Date.now()
     };
-    mockGalleryData.unshift(newItem);
+
+    console.log('Mock API - addGalleryItem:', newItem);
+
+    // Add to the beginning of the array
+    galleryData.unshift(newItem);
+
+    // Save to localStorage
+    saveGalleryData(galleryData);
+
     return Promise.resolve(newItem);
   },
   updateGalleryItem: (id, item) => {
-    const index = mockGalleryData.findIndex(i => i._id === id);
+    console.log('Mock API - updateGalleryItem:', id, item);
+
+    const galleryData = getGalleryData();
+    const index = galleryData.findIndex(i => i._id === id);
+
     if (index !== -1) {
-      mockGalleryData[index] = { ...mockGalleryData[index], ...item };
-      return Promise.resolve(mockGalleryData[index]);
+      // Update the item
+      galleryData[index] = {
+        ...galleryData[index],
+        ...item,
+        lastUpdated: Date.now()
+      };
+
+      // Save to localStorage
+      saveGalleryData(galleryData);
+
+      return Promise.resolve(galleryData[index]);
     }
+
+    console.error('Gallery item not found for update:', id);
     return Promise.reject(new Error('Gallery item not found'));
   },
   deleteGalleryItem: (id) => {
-    const index = mockGalleryData.findIndex(i => i._id === id);
+    console.log('Mock API - deleteGalleryItem:', id);
+
+    const galleryData = getGalleryData();
+    const index = galleryData.findIndex(i => i._id === id);
+
     if (index !== -1) {
-      mockGalleryData.splice(index, 1);
+      // Remove the item
+      galleryData.splice(index, 1);
+
+      // Save to localStorage
+      saveGalleryData(galleryData);
+
       return Promise.resolve({ success: true });
     }
+
+    console.error('Gallery item not found for deletion:', id);
     return Promise.reject(new Error('Gallery item not found'));
   },
 

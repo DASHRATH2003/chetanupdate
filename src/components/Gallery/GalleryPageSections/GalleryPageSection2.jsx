@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect } from "react";
+import React, { useCallback, useState, useEffect, useContext } from "react";
 import axios from "axios";
 import { ChevronLeft, ChevronRight, X } from "lucide-react";
 // Fallback images in case API fails
@@ -7,11 +7,60 @@ import img2 from "../../../assets/GalleryImages/2.webp";
 import img3 from "../../../assets/GalleryImages/3.webp";
 import img4 from "../../../assets/GalleryImages/4.webp";
 import { mockApi } from "../../../utils/mockApi";
+import GalleryContext from "../../../context/GalleryContext";
+import imageStorage from '../../../utils/simpleImageStorage';
+
+// Helper function to get image source from storage or use fallback
+const getImageSource = (imageUrl) => {
+  console.log("Getting image source for:", imageUrl);
+
+  if (!imageUrl) {
+    console.log("No image URL provided, returning null");
+    return null;
+  }
+
+  // If it's a direct URL or path, return it
+  if (!imageUrl.startsWith('img:')) {
+    console.log("Image URL is a direct path, returning as is");
+    return imageUrl;
+  }
+
+  // Try to get the data URL from our image storage utility
+  try {
+    const key = imageUrl.substring(4); // Remove the 'img:' prefix
+    console.log("Looking for image with key:", key);
+
+    const imageResult = imageStorage.getImage(key);
+    console.log("Image found:", !!imageResult);
+
+    if (imageResult && imageResult.data) {
+      console.log("Image data retrieved successfully");
+      return imageResult.data;
+    } else {
+      console.log("Image not found in storage");
+    }
+  } catch (error) {
+    console.error("Error retrieving image:", error);
+  }
+
+  console.log("Using fallback image");
+  // Fallback to a default image if we couldn't get the stored image
+  return img1;
+};
 
 const GalleryPageSection2 = () => {
+  // Use the GalleryContext
+  const {
+    gallery: contextGallery,
+    loading: contextLoading,
+    lastUpdate: contextLastUpdate,
+    refreshGalleryFromStorage
+  } = useContext(GalleryContext);
+
   const [gallery, setGallery] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [apiAvailable, setApiAvailable] = useState(false); // Default to false to avoid unnecessary API calls
 
   // Fallback gallery data
   const fallbackGallery = [
@@ -21,29 +70,148 @@ const GalleryPageSection2 = () => {
     { src: img4, alt: "Gallery image 4" }
   ];
 
+  // Function to process gallery items from context
+  const processGalleryItems = useCallback(() => {
+    if (!contextGallery || contextGallery.length === 0) {
+      console.log("No gallery data in context");
+      return null;
+    }
+
+    console.log("Processing gallery data from context, items:", contextGallery.length);
+
+    // Create a map to track unique IDs
+    const uniqueItemsMap = new Map();
+
+    // Process each gallery item
+    contextGallery.forEach((item, index) => {
+      if (!item || !item._id) {
+        console.warn(`Invalid gallery item at index ${index}:`, item);
+        return; // Skip invalid items
+      }
+
+      // Get the image source
+      const imageSrc = getImageSource(item.imageUrl || item.src);
+
+      // Add to map with ID as key to ensure uniqueness
+      uniqueItemsMap.set(item._id, {
+        src: imageSrc || img1, // Use fallback if no image source
+        alt: item.title || item.alt || "Gallery image",
+        title: item.title,
+        description: item.description,
+        _id: item._id // Keep the ID for reference
+      });
+    });
+
+    // Convert map to array
+    return Array.from(uniqueItemsMap.values());
+  }, [contextGallery]);
+
+  // Effect to update gallery when context changes
   useEffect(() => {
-    const fetchGalleryImages = async () => {
+    const updateGallery = async () => {
       try {
         setLoading(true);
+        console.log("Updating gallery from context...");
 
+        // Process gallery items
+        const formattedGallery = processGalleryItems();
+
+        if (formattedGallery && formattedGallery.length > 0) {
+          console.log(`Processed ${formattedGallery.length} unique gallery items from context`);
+          setGallery(formattedGallery);
+        } else {
+          console.warn("No valid gallery items found in context");
+          // Try to refresh from storage
+          refreshGalleryFromStorage();
+        }
+      } catch (error) {
+        console.error("Error updating gallery:", error);
+        setError("Failed to update gallery");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    updateGallery();
+  }, [contextGallery, contextLastUpdate, processGalleryItems, refreshGalleryFromStorage]);
+
+  // Check API availability on mount
+  useEffect(() => {
+    const checkApiAvailability = async () => {
+      if (window.location.hostname === 'localhost') {
+        try {
+          console.log("Gallery frontend checking API availability...");
+          const response = await axios.get('http://localhost:5000/api/health', {
+            timeout: 1000 // Short timeout for quick check
+          });
+          console.log("API is available:", response.status === 200);
+          setApiAvailable(response.status === 200);
+        } catch (error) {
+          console.log("API is not available:", error.message);
+          setApiAvailable(false);
+        }
+      } else {
+        // In production, don't try to use the API
+        setApiAvailable(false);
+      }
+    };
+
+    checkApiAvailability();
+  }, []);
+
+  // Initial load effect
+  useEffect(() => {
+    const loadGalleryImages = async () => {
+      try {
+        setLoading(true);
+        console.log("Loading gallery images...");
+
+        // First try to use gallery from context
+        const formattedGallery = processGalleryItems();
+
+        if (formattedGallery && formattedGallery.length > 0) {
+          setGallery(formattedGallery);
+          setLoading(false);
+          return;
+        } else {
+          console.log("No gallery data in context or empty gallery");
+        }
+
+        // If no context data, try API or mock API
         try {
           let galleryData;
 
-          if (window.location.hostname === 'localhost') {
-            // Development mode - try to use real API
-            const res = await axios.get('http://localhost:5000/api/gallery');
-            console.log("Gallery data received from API:", res.data);
-            galleryData = res.data;
+          if (window.location.hostname === 'localhost' && apiAvailable) {
+            // Development mode and API is available - try to use real API
+            console.log("Attempting to fetch gallery from API...");
+            try {
+              const res = await axios.get('http://localhost:5000/api/gallery', {
+                timeout: 2000 // Set a timeout to avoid long waits
+              });
+              console.log("Gallery data received from API:", res.data);
+              galleryData = res.data;
+            } catch (apiError) {
+              console.log("API call failed, using mock data:", apiError);
+              // Fall back to mock API
+              galleryData = await mockApi.getGallery();
+              console.log("Gallery data received from mock API (after API failure):", galleryData);
+            }
           } else {
-            // Production mode - use mock API
+            // Production mode or API not available - use mock API
+            console.log("Using mock API for gallery data");
             galleryData = await mockApi.getGallery();
             console.log("Gallery data received from mock API:", galleryData);
           }
 
           if (galleryData && galleryData.length > 0) {
             // Format the data for our gallery
-            const formattedGallery = galleryData.map((item, index) => ({
-              src: fallbackGallery[index % fallbackGallery.length].src, // Use fallback images in a loop
+            const formattedGallery = galleryData.map((item) => ({
+              // Use the actual image URL from the gallery data
+              src: item.imageUrl.startsWith('http')
+                ? item.imageUrl
+                : window.location.hostname === 'localhost'
+                  ? `http://localhost:5000${item.imageUrl}`
+                  : item.imageUrl,
               alt: item.title || "Gallery image",
               title: item.title,
               description: item.description
@@ -69,8 +237,8 @@ const GalleryPageSection2 = () => {
       }
     };
 
-    fetchGalleryImages();
-  }, []);
+    loadGalleryImages();
+  }, [processGalleryItems, apiAvailable]); // Run when processGalleryItems or apiAvailable changes
   const [currentIndex, setCurrentIndex] = useState(null);
   const [touchStart, setTouchStart] = useState(0);
   const [touchEnd, setTouchEnd] = useState(0);
@@ -88,22 +256,38 @@ const GalleryPageSection2 = () => {
   }, [gallery.length]);
 
   const handleTouchStart = (e) => {
-    setTouchStart(e.targetTouches[0].clientX);
+    // Store the touch position, not the event
+    if (e && e.targetTouches && e.targetTouches[0]) {
+      setTouchStart(e.targetTouches[0].clientX);
+    }
   };
 
   const handleTouchMove = (e) => {
-    setTouchEnd(e.targetTouches[0].clientX);
+    // Store the touch position, not the event
+    if (e && e.targetTouches && e.targetTouches[0]) {
+      setTouchEnd(e.targetTouches[0].clientX);
+    }
   };
 
-  const handleTouchEnd = () => {
-    if (touchStart - touchEnd > 150) {
-      handleNext();
-    }
+  const handleTouchEnd = (e) => {
+    // Prevent passing the event object
+    e && e.preventDefault && e.preventDefault();
 
-    if (touchStart - touchEnd < -150) {
+    // Use the stored positions for calculations
+    const swipeDistance = touchStart - touchEnd;
+
+    if (swipeDistance > 150) {
+      handleNext();
+    } else if (swipeDistance < -150) {
       handlePrev();
     }
+
+    // Reset touch positions
+    setTouchStart(0);
+    setTouchEnd(0);
   };
+
+
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -154,14 +338,18 @@ const GalleryPageSection2 = () => {
       {currentIndex !== null && (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4">
           <div className="relative max-w-4xl w-full h-full flex items-center justify-center">
-            <img
-              src={gallery[currentIndex].src}
-              alt={gallery[currentIndex].alt}
-              className="max-w-full max-h-full object-contain"
+            <div
+              className="w-full h-full flex items-center justify-center touch-none"
               onTouchStart={handleTouchStart}
               onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
-            />
+            >
+              <img
+                src={gallery[currentIndex].src}
+                alt={gallery[currentIndex].alt}
+                className="max-w-full max-h-full object-contain pointer-events-none"
+              />
+            </div>
             <div className="absolute bottom-4 left-0 right-0 text-center text-white">
               <h3 className="text-lg font-medium">{gallery[currentIndex].title}</h3>
               {gallery[currentIndex].description && (

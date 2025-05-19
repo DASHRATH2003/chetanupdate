@@ -17,11 +17,10 @@ const Projects_Banner_Section = () => {
 
   return (
     <section className="bg-[#faf5fa] py-12 md:py-24">
-      <section className="flex items-center flex-col gap-3 md:gap-5">
+      <section className="flex items-center flex-col mb-8">
         <h1 className="text-[#48A77E] text-center font-bold text-3xl md:text-5xl">
           PROJECTS
         </h1>
-        <div className="bg-[#800080] h-1 w-16 md:w-20 flex"></div>
       </section>
 
       {/* Projects Section */}
@@ -69,10 +68,9 @@ const Projects_Banner_Section = () => {
 
       {/* Future Projects */}
       <section className="container mx-auto flex flex-col items-center lg:items-start gap-4 md:gap-5 justify-center mt-10 md:mt-14 px-4">
-        <h1 className="font-bold uppercase text-xl md:text-2xl">
+        <h1 className="font-bold uppercase text-xl md:text-2xl mb-4">
           Future Projects
         </h1>
-        <div className="bg-[#eb2beb] h-[2px] w-16 md:w-20"></div>
         <p className="text-center lg:text-justify leading-6 max-w-3xl">
           Chethan's future in filmmaking is filled with exciting possibilities.
           With several innovative projects in development, he is focused on

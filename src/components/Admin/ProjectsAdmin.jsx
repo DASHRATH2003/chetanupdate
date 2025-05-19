@@ -76,11 +76,11 @@ const ProjectsAdmin = () => {
       setUploading(true);
       setError(null);
 
-      // Create a new project
+      // Create a new project with default description if not provided
       const newProject = {
         _id: Date.now().toString(), // Generate a unique ID
         title,
-        description,
+        description: description || `${title} - ${category} project by Chethan Jodidhar`, // Use default description if not provided
         imageUrl: preview, // Use the preview as the image URL
         category,
         section,
@@ -171,14 +171,14 @@ const ProjectsAdmin = () => {
       setLoading(true);
       setError(null);
 
-      // Create an updated project object
+      // Create an updated project object - maintain existing description
       const updatedProject = {
         ...editingProject,
         title: editTitle,
-        description: editDescription,
+        description: editingProject.description || `${editTitle} - ${editCategory} project by Chethan Jodidhar`, // Maintain existing description
         category: editCategory,
-        section: editSection,
-        completed: editCompleted,
+        section: editingProject.section || 'Banner', // Maintain existing section
+        completed: editingProject.completed || false, // Maintain existing completed status
         imageUrl: editFile ? editPreview : editingProject.imageUrl,
         year: editingProject.year || new Date().getFullYear().toString()
       };
@@ -258,57 +258,14 @@ const ProjectsAdmin = () => {
                   onChange={(e) => setCategory(e.target.value)}
                   required
                   className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  placeholder="e.g., Commercial, Residential, etc."
+                  placeholder="e.g., Film, Commercial, etc."
                 />
               </div>
             </div>
 
-            <div>
-              <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                Description
-              </label>
-              <textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows="3"
-                required
-                className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-              ></textarea>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label htmlFor="section" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                  Section
-                </label>
-                <select
-                  id="section"
-                  value={section}
-                  onChange={(e) => setSection(e.target.value)}
-                  required
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                >
-                  <option value="Banner">Banner Section</option>
-                  <option value="Section2">Section 2</option>
-                  <option value="Section3">Section 3</option>
-                  <option value="Cameo">Cameo Section</option>
-                </select>
-              </div>
-
-              <div className="flex items-center mt-6">
-                <input
-                  type="checkbox"
-                  id="completed"
-                  checked={completed}
-                  onChange={(e) => setCompleted(e.target.checked)}
-                  className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                />
-                <label htmlFor="completed" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                  Mark as completed project
-                </label>
-              </div>
-            </div>
+            {/* Hidden fields with default values */}
+            <input type="hidden" id="section" value={section} />
+            <input type="hidden" id="completed" checked={completed} />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -391,6 +348,7 @@ const ProjectsAdmin = () => {
                 className="border border-gray-300 dark:border-gray-600 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500 dark:bg-gray-700 dark:text-white"
               >
                 <option value="all">All Sections</option>
+                <option value="Home">Home Page</option>
                 <option value="Banner">Banner Section</option>
                 <option value="Section2">Section 2</option>
                 <option value="Section3">Section 3</option>
@@ -504,52 +462,10 @@ const ProjectsAdmin = () => {
                   </div>
                 </div>
 
-                <div>
-                  <label htmlFor="editDescription" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                    Description
-                  </label>
-                  <textarea
-                    id="editDescription"
-                    value={editDescription}
-                    onChange={(e) => setEditDescription(e.target.value)}
-                    rows="3"
-                    required
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                  ></textarea>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label htmlFor="editSection" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-                      Section
-                    </label>
-                    <select
-                      id="editSection"
-                      value={editSection}
-                      onChange={(e) => setEditSection(e.target.value)}
-                      required
-                      className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-purple-500 focus:ring-purple-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-                    >
-                      <option value="Banner">Banner Section</option>
-                      <option value="Section2">Section 2</option>
-                      <option value="Section3">Section 3</option>
-                      <option value="Cameo">Cameo Section</option>
-                    </select>
-                  </div>
-
-                  <div className="flex items-center mt-6">
-                    <input
-                      type="checkbox"
-                      id="editCompleted"
-                      checked={editCompleted}
-                      onChange={(e) => setEditCompleted(e.target.checked)}
-                      className="h-4 w-4 text-purple-600 focus:ring-purple-500 border-gray-300 rounded"
-                    />
-                    <label htmlFor="editCompleted" className="ml-2 block text-sm text-gray-700 dark:text-gray-300">
-                      Mark as completed project
-                    </label>
-                  </div>
-                </div>
+                {/* Hidden fields to maintain existing values */}
+                <input type="hidden" id="editDescription" value={editDescription} />
+                <input type="hidden" id="editSection" value={editSection} />
+                <input type="hidden" id="editCompleted" checked={editCompleted} />
 
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
